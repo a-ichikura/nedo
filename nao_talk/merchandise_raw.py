@@ -48,9 +48,10 @@ class Talk(object):
           self.pFractionMaxSpeed = 0.4
 
           self.JointNames = ["LShoulerPitch","LshoulderRoll","LElbowYaw","LElbowRoll","LWristYaw","RShoulerPitch","RshoulderRoll","RElbowYaw","RElbowRoll","RWristYaw"]
+          self.JointNames1 = ["LShoulerPitch","LshoulderRoll","LElbowYaw","LElbowRoll","LWristYaw","RShoulerPitch","RshoulderRoll","RElbowYaw","RElbowRoll","RWristYaw","HeadPitch"]
           self.Arm1 = [81.2, 8.52, -46.0, -60.8, 7.6, 78, -21.7, 111, 58.4, 0.87]
           self.Arm2 = [81.7, 16, -78.5, -57, 0.61, 68, -32, 119, 78.3, 2.6]
-          self.Arm3 = [86.8, 1.66, -53.9, -58.1, 0.44, 81.5, -3.34, 46.1, 51, -0.18]
+          self.Arm3 = [86.8, 1.66, -53.9, -58.1, 0.44, 81.5, -3.34, 46.1, 51, -0.18,19.5]
 
           self.postureproxy.goToPosture("Crouch", 0.5)
      #words = recognition results
@@ -87,6 +88,8 @@ class Talk(object):
                     tim = 50
                     self.faceproxy.unsubscribe("Test_Face")
                     face_detected = 0
+                    face_tracking = True
+                    self.face_tracking(face_tracking)
                     break
                else:
                     self.walk_around(pose)    
@@ -100,6 +103,11 @@ class Talk(object):
                          break
           self.postureproxy.goToPosture("Crouch",1.0)
           return face_detected
+
+     def face_tracking(self,face_tracking):
+          self.faceproxy.enableTracking(face_tracking)
+          print(self.faceproxy.isTrackingEnabled())
+          
                     
                 
      def walk_around(self,pose):
@@ -133,10 +141,12 @@ class Talk(object):
                '何かお困りですか:',
                'こちらご試着されますか:',
                ]
-#          e = random.randrange(len(list))
-#          self.speechproxy.post.say(list[e])
+          #e = random.randrange(len(list))
+          #self.speechproxy.post.say(list[e])
+
+          self.face_tracking(True) #face tracking on
+                    
           self.speechproxy.post.say("こちらご試着されますか")
-          time.sleep(3)
           Arm_move = [ x * motion.TO_RAD for x in self.Arm1]
           self.motionproxy.angleInterpolationWithSpeed(self.JointNames,Arm_move,self.pFractionMaxSpeed)
           time.sleep(7)
@@ -147,6 +157,7 @@ class Talk(object):
           if words == "お願いします":
                self.speechproxy.post.say("かしこまりました")
                time.sleep(2)
+               self.face_tracking(False) #face tacking off
                self.postureproxy.goToPosture("StandInit", 0.5)
                time.sleep(3)
                Arm_move = [ x * motion.TO_RAD for x in self.Arm2]
@@ -155,7 +166,7 @@ class Talk(object):
                time.sleep(3)
                return 0
           
-          if words == "結構です":
+          if words == "いいえ":
                self.speechproxy.post.say("またお声がけください")
                return 1
 
@@ -168,6 +179,7 @@ class Talk(object):
           self.speechproxy.post.say(list_0[e_0])
           time.sleep(10)
 
+          self.face_tracking(True)
           #お客さんの反応を待つ
           list_1 = [
                "汚れやすいので防水スプレーをご利用ください:",
@@ -200,14 +212,25 @@ class Talk(object):
                
           self.speechproxy.post.say("こちらでお決まりですか:")
           time.sleep(3)
+          self.face_tracking(False)
           self.speechproxy.post.say("ありがとうございます")
           time.sleep(3)
           Arm_move = [ x * motion.TO_RAD for x in self.Arm3]
-          self.motionproxy.angleInterpolationWithSpeed(self.JointNames,Arm_move,self.pFractionMaxSpeed)
-          time.sleep(3)
+          self.motionproxy.angleInterpolationWithSpeed(self.JointNames1,Arm_move,self.pFractionMaxSpeed)
+          time.sleep(2)
+          self.motionproxy.angleInterpolationWithSpeed("HeadPitch",0,self.pFractionMaxSpeed)
+          time.sleep(2)
+          self.speechproxy.post.say("レジへどうぞ")
+          time.sleep(1)
           self.postureproxy.goToPosture("Crouch", 0.5)
+          self.motionproxy.rest()
           
      def talked_to(self):
+          rospy.wait_for_message("/Tablet/voice",SpeechRecognitionCandidates,timeout=None)
+          self.face_tracking(True)
+          self.postureproxy.goToPosture("StandInit", 0.5)
+	  time.sleep(2)
+          
           #商品の在庫を聞かれた時
           list_1 = [
                "こちらの商品をお持ちします:",
@@ -243,21 +266,19 @@ class Talk(object):
 if __name__ == '__main__':
     p = Talk()
     e = p.detect_person()
-    e.postureproxy.goToPosture("Crouch",0.5)
-    print(e)
-#    if e == 0:
-#        y = p.greet()
-#        y
-#        if y == 0:
-#            p.fitting()
-#        else:
-#            pass
-#    else:
-#        print "いつでもはなしかけてください"
-#        y = p.talked_to()
-#        y
-#        if y == 0:
-#            p.fitting()
-#        else:
-#            pass
-#
+    if e == 0:
+        y = p.greet()
+        y
+        if y == 0:
+            p.fitting()
+        else:
+            p.motionproxy.rest()
+    else:
+        print "いつでもはなしかけてください"
+        y = p.talked_to()
+        y
+        if y == 0:
+            p.fitting()
+        else:
+            p.motionproxy.rest()
+
